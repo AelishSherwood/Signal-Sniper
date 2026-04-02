@@ -1,0 +1,3 @@
+[build]
+  command = "node inject-keys.js"
+  publish = "dist"

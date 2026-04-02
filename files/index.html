@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal Sniper</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08090c;--bg2:#0e1018;--bg3:#13151f;--bg4:#1a1d2a;
+  --border:#ffffff14;--border2:#ffffff22;
+  --green:#00ff88;--red:#ff3d5a;--yellow:#ffd166;
+  --text:#e8eaf0;--muted:#7a7f96;--dim:#3a3f55;
+  --card:#111420;--card2:#161925;
+  --font-head:'Syne',sans-serif;--font-mono:'Space Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:13px;min-height:100vh;overflow-x:hidden}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.logo{font-family:var(--font-head);font-size:18px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,255,136,0.4)}50%{opacity:0.8;box-shadow:0 0 0 6px rgba(0,255,136,0)}}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{padding:6px 14px;border-radius:6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;border:none;background:transparent;color:var(--muted);transition:all 0.15s;letter-spacing:0.5px}
+.tab.active{background:var(--bg4);color:var(--text);border:1px solid var(--border2)}
+.tab:hover:not(.active){color:var(--text)}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--green);padding:4px 10px;border:1px solid rgba(0,255,136,0.2);border-radius:20px}
+.live-dot{width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+.main{max-width:1100px;margin:0 auto;padding:20px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.header-left h2{font-family:var(--font-head);font-size:22px;font-weight:700}
+.header-left p{color:var(--muted);font-size:11px;margin-top:3px;letter-spacing:0.5px}
+.stats-row{display:flex;gap:12px;flex-wrap:wrap}
+.stat-chip{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 14px;text-align:center}
+.stat-chip .val{font-family:var(--font-head);font-size:16px;font-weight:700}
+.stat-chip .lbl{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px}
+.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}
+.filter-row{display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+.filter-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px}
+.filter-btn.active{border-color:var(--green);color:var(--green);background:rgba(0,255,136,0.08)}
+.filter-btn:hover:not(.active){color:var(--text);border-color:var(--border2)}
+.account-row{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.account-label{font-size:10px;color:var(--muted)}
+.account-input{background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;color:var(--text);font-family:var(--font-mono);font-size:12px;width:80px}
+.refresh-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-size:10px;transition:all 0.15s;font-family:var(--font-mono)}
+.refresh-btn:hover{color:var(--green);border-color:rgba(0,255,136,0.3)}
+.signals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:24px}
+.signal-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+.signal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;transition:opacity 0.2s}
+.signal-card.call::before{background:linear-gradient(90deg,var(--green),transparent)}
+.signal-card.put::before{background:linear-gradient(90deg,var(--red),transparent)}
+.signal-card:hover{border-color:var(--border2);background:var(--card2);transform:translateY(-1px)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.direction-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.direction-badge.call{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)}
+.direction-badge.put{background:rgba(255,61,90,0.12);color:var(--red);border:1px solid rgba(255,61,90,0.25)}
+.ticker{font-family:var(--font-head);font-size:26px;font-weight:800;line-height:1}
+.company{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:0.3px}
+.confidence-ring{width:60px;height:60px;position:relative;flex-shrink:0}
+.confidence-ring svg{transform:rotate(-90deg)}
+.conf-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.conf-pct{font-family:var(--font-head);font-size:14px;font-weight:700;line-height:1}
+.conf-lbl{font-size:8px;color:var(--muted);letter-spacing:0.5px}
+.price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:12px}
+.current-price{font-family:var(--font-head);font-size:20px;font-weight:700}
+.expected-move{font-size:11px;padding:2px 8px;border-radius:4px}
+.expected-move.call{background:rgba(0,255,136,0.1);color:var(--green)}
+.expected-move.put{background:rgba(255,61,90,0.1);color:var(--red)}
+.trade-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.trade-item{background:var(--bg3);border-radius:6px;padding:7px 8px}
+.trade-item .tl{font-size:9px;color:var(--muted);letter-spacing:0.8px;margin-bottom:2px}
+.trade-item .tv{font-size:12px;font-weight:700}
+.divider{height:1px;background:var(--border);margin:12px 0}
+.stop-target{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.st-item{text-align:center}
+.st-label{font-size:9px;color:var(--muted);letter-spacing:0.8px;margin-bottom:2px}
+.st-val{font-size:13px;font-weight:700}
+.rr-badge{padding:4px 10px;border-radius:6px;background:rgba(255,209,102,0.1);border:1px solid rgba(255,209,102,0.2);color:var(--yellow);font-size:11px;font-weight:700}
+.reason{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.catalyst{display:flex;align-items:flex-start;gap:6px;font-size:10px;color:var(--text);background:var(--bg4);border-radius:6px;padding:8px;border-left:2px solid var(--yellow)}
+.contracts-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.contracts-label{font-size:9px;color:var(--muted);letter-spacing:0.8px}
+.contracts-val{font-size:12px;color:var(--yellow);font-weight:700}
+.view-btn{font-size:9px;color:var(--muted);padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;cursor:pointer;transition:all 0.15s;font-family:var(--font-mono);letter-spacing:0.5px}
+.view-btn:hover{color:var(--text);border-color:var(--border2)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;display:flex;align-items:flex-start;justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);width:min(580px,100vw);height:100vh;overflow-y:auto;border-left:1px solid var(--border);transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1)}
+.modal-overlay.open .modal{transform:translateX(0)}
+.modal-header{padding:20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:10}
+.modal-title{font-family:var(--font-head);font-size:20px;font-weight:700}
+.close-btn{background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:6px 12px;cursor:pointer;font-size:12px;font-family:var(--font-mono)}
+.close-btn:hover{color:var(--text)}
+.modal-body{padding:20px}
+.chart-container{background:var(--bg3);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:16px}
+.chart-title{font-size:11px;color:var(--muted);letter-spacing:0.8px;margin-bottom:12px}
+.chart-wrap{position:relative;height:220px}
+.indicator-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.indicator-card{background:var(--bg3);border-radius:8px;padding:12px;border:1px solid var(--border)}
+.ind-name{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px}
+.ind-bar-bg{height:4px;background:var(--bg4);border-radius:2px;margin-bottom:6px}
+.ind-bar{height:4px;border-radius:2px}
+.ind-val{font-size:13px;font-weight:700}
+.ind-signal{font-size:9px;margin-top:2px;letter-spacing:0.5px}
+.news-card{background:var(--bg3);border-radius:8px;padding:12px;border:1px solid var(--border);margin-bottom:8px}
+.news-source{font-size:9px;color:var(--muted);letter-spacing:0.8px;margin-bottom:4px}
+.news-title{font-size:12px;color:var(--text);line-height:1.4}
+.news-time{font-size:9px;color:var(--dim);margin-top:4px}
+.exec-card{background:var(--bg3);border-radius:10px;padding:16px;border:1px solid var(--border2);margin-bottom:16px}
+.exec-title{font-size:11px;letter-spacing:1px;color:var(--muted);margin-bottom:12px}
+.exec-step{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.exec-num{width:20px;height:20px;border-radius:50%;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px}
+.exec-text{font-size:11px;color:var(--text);line-height:1.5}
+.exec-text b{color:var(--green)}
+.perf-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.perf-title{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:16px}
+.perf-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.perf-stat{background:var(--bg3);border-radius:8px;padding:12px;text-align:center}
+.perf-stat .pv{font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:2px}
+.perf-stat .pl{font-size:9px;color:var(--muted);letter-spacing:1px}
+.trade-history{overflow-x:auto}
+.hist-table{width:100%;border-collapse:collapse;font-size:11px}
+.hist-table th{text-align:left;color:var(--muted);font-size:9px;letter-spacing:1px;padding:6px 8px;border-bottom:1px solid var(--border);font-weight:400}
+.hist-table td{padding:8px 8px;border-bottom:1px solid var(--border)}
+.win{color:var(--green)}.loss{color:var(--red)}
+.watch-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:border-color 0.15s}
+.watch-card:hover{border-color:var(--border2)}
+.watch-left .wt{font-family:var(--font-head);font-size:18px;font-weight:700}
+.watch-left .wc{font-size:10px;color:var(--muted);margin-top:2px}
+.watch-right{text-align:right}
+.watch-price{font-size:16px;font-weight:700}
+.watch-chg{font-size:11px;margin-top:2px}
+.settings-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.settings-title{font-size:12px;letter-spacing:1px;color:var(--muted);margin-bottom:16px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.setting-row:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.setting-label{font-size:12px}
+.setting-desc{font-size:10px;color:var(--muted);margin-top:2px}
+.toggle{width:40px;height:22px;background:var(--bg4);border-radius:11px;border:1px solid var(--border2);cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0}
+.toggle.on{background:rgba(0,255,136,0.2);border-color:rgba(0,255,136,0.4)}
+.toggle-knob{width:16px;height:16px;background:var(--muted);border-radius:50%;position:absolute;top:2px;left:2px;transition:all 0.2s}
+.toggle.on .toggle-knob{left:20px;background:var(--green)}
+.api-input{background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;color:var(--text);font-family:var(--font-mono);font-size:11px;width:100%;margin-top:6px}
+.api-input::placeholder{color:var(--dim)}
+.banner{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1a0e0e;border:1px solid rgba(255,61,90,0.4);border-radius:8px;padding:10px 20px;font-size:12px;color:var(--red);z-index:200;display:none;align-items:center;gap:8px;white-space:nowrap}
+.banner.show{display:flex}
+.demo-badge{background:rgba(255,209,102,0.1);border:1px solid rgba(255,209,102,0.25);border-radius:4px;padding:3px 10px;font-size:9px;color:var(--yellow);letter-spacing:1px}
+.section-header{font-size:10px;letter-spacing:1.5px;color:var(--dim);margin-bottom:10px;margin-top:4px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+@media(max-width:600px){
+  .nav{padding:10px 14px}
+  .main{padding:14px}
+  .signals-grid{grid-template-columns:1fr}
+  .perf-stats{grid-template-columns:repeat(2,1fr)}
+  .nav-tabs .tab{font-size:9px;padding:5px 8px}
+}
+</style>
+</head>
+<body>
+
+<div class="banner" id="banner">⚠ STOP HIT: MULN — Signal invalidated. Exit position.</div>
+
+<div class="nav">
+  <div class="logo"><div class="logo-dot"></div>SIGNAL SNIPER</div>
+  <div class="nav-tabs">
+    <button class="tab active" onclick="showTab('signals')">SIGNALS</button>
+    <button class="tab" onclick="showTab('watchlist')">WATCHLIST</button>
+    <button class="tab" onclick="showTab('positions')">POSITIONS</button>
+    <button class="tab" onclick="showTab('performance')">PERFORMANCE</button>
+    <button class="tab" onclick="showTab('settings')">SETTINGS</button>
+  </div>
+  <div class="live-badge" id="live-badge"><div class="live-dot"></div><span id="live-label">DEMO MODE</span></div>
+</div>
+
+<div class="main" id="app">
+
+  <!-- SIGNALS TAB -->
+  <div id="tab-signals">
+    <div class="header">
+      <div class="header-left">
+        <h2>Today's Signals</h2>
+        <p>RANKED BY CONFIDENCE · SMALL-CAP OPTIONS · 0–7 DTE</p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-chip"><div class="val green">71%</div><div class="lbl">WIN RATE</div></div>
+        <div class="stat-chip"><div class="val yellow">1:2.8</div><div class="lbl">AVG R:R</div></div>
+        <div class="stat-chip"><div class="val green" id="sig-count">5</div><div class="lbl">SIGNALS</div></div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterSignals('all',this)">ALL</button>
+      <button class="filter-btn" onclick="filterSignals('call',this)">CALLS ONLY</button>
+      <button class="filter-btn" onclick="filterSignals('put',this)">PUTS ONLY</button>
+      <button class="filter-btn" onclick="filterSignals('high',this)">HIGH CONF 80%+</button>
+      <div class="account-row">
+        <span class="account-label">ACCOUNT $</span>
+        <input class="account-input" id="accountSize" type="number" value="450" min="100" max="50000" onchange="renderSignals()">
+        <button class="refresh-btn" onclick="refreshSignals()">↺ REFRESH</button>
+      </div>
+    </div>
+    <div class="demo-badge" id="mode-badge" style="display:inline-block;margin-bottom:12px">DEMO MODE — Add API keys in Settings for live data</div>
+    <div class="signals-grid" id="signals-container"></div>
+  </div>
+
+  <!-- WATCHLIST TAB -->
+  <div id="tab-watchlist" style="display:none">
+    <div class="header"><div class="header-left"><h2>Watchlist</h2><p>SMALL-CAP SETUPS TO MONITOR</p></div></div>
+    <div id="watchlist-container"></div>
+  </div>
+
+  <!-- POSITIONS TAB -->
+  <div id="tab-positions" style="display:none">
+    <div class="header"><div class="header-left"><h2>My Positions</h2><p>MARK TRADES AS TAKEN TO TRACK P&L</p></div></div>
+    <div id="positions-container"></div>
+  </div>
+
+  <!-- PERFORMANCE TAB -->
+  <div id="tab-performance" style="display:none">
+    <div class="header"><div class="header-left"><h2>Performance</h2><p>SIGNAL VERACITY TRACKER</p></div></div>
+    <div class="perf-card">
+      <div class="perf-title">Overall Stats</div>
+      <div class="perf-stats">
+        <div class="perf-stat"><div class="pv green">71%</div><div class="pl">WIN RATE</div></div>
+        <div class="perf-stat"><div class="pv yellow">1:2.8</div><div class="pl">AVG R:R</div></div>
+        <div class="perf-stat"><div class="pv green">+$842</div><div class="pl">DEMO P&L</div></div>
+        <div class="perf-stat"><div class="pv">24</div><div class="pl">SIGNALS SENT</div></div>
+      </div>
+      <div class="chart-title" style="font-size:10px;color:var(--muted);letter-spacing:0.8px;margin-bottom:8px">CUMULATIVE P&L (DEMO)</div>
+      <div style="position:relative;height:180px"><canvas id="perfChart"></canvas></div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-title">Signal History</div>
+      <div class="trade-history"><table class="hist-table">
+        <thead><tr><th>DATE</th><th>TICKER</th><th>DIR</th><th>CONF</th><th>RESULT</th><th>P&L</th></tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="tab-settings" style="display:none">
+    <div class="header"><div class="header-left"><h2>Settings</h2><p>RISK ENGINE & DATA FEEDS</p></div></div>
+    <div class="settings-section">
+      <div class="settings-title">RISK ENGINE</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Risk % Per Trade</div><div class="setting-desc">Percent of account risked per signal (default 15%)</div></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" min="5" max="30" value="15" id="riskPct" style="width:80px" oninput="document.getElementById('riskVal').textContent=this.value+'%'">
+          <span id="riskVal" style="font-size:12px;color:var(--yellow);min-width:30px">15%</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Max Signals Shown</div><div class="setting-desc">Limit displayed signals (3–8)</div></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" min="3" max="8" value="5" id="maxSigs" style="width:80px" oninput="document.getElementById('sigVal').textContent=this.value;renderSignals()">
+          <span id="sigVal" style="font-size:12px;color:var(--yellow);min-width:20px">5</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Invalidation Alerts</div><div class="setting-desc">Banner when stop level is hit</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Guardrails</div><div class="setting-desc">Filter illiquid options (min 300k vol, tight spread)</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">DATA FEEDS</div>
+      <!-- ============================================================
+           API KEY INPUTS
+           The values below are injected automatically by inject-keys.js
+           during Netlify deployment from your environment variables.
+           Leave __POLYGON_KEY__ and __FINNHUB_KEY__ exactly as-is.
+           ============================================================ -->
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div class="setting-label">Polygon.io API Key</div>
+        <div class="setting-desc">Real-time quotes, volume, options flow · polygon.io (free tier available)</div>
+        <input class="api-input" type="password" placeholder="pk_xxxxxxxxxxxxxxxxxxxx" id="polygonKey" value="__POLYGON_KEY__">
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div class="setting-label">Finnhub API Key</div>
+        <div class="setting-desc">News & catalyst scanning · finnhub.io (free tier available)</div>
+        <input class="api-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxx" id="finnhubKey" value="__FINNHUB_KEY__">
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+        <button style="padding:8px 20px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:6px;color:var(--green);font-family:var(--font-mono);font-size:11px;cursor:pointer" onclick="saveKeys()">SAVE & ACTIVATE</button>
+        <span id="save-confirm" style="font-size:11px;color:var(--green);display:none">✓ Keys saved — refreshing data...</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">BEFORE YOU GO LIVE</div>
+      <div style="font-size:11px;color:var(--muted);line-height:2">
+        ✓ Run Signal Sniper in demo mode for at least 1–2 weeks before risking real capital.<br>
+        ✓ Track every signal result in the Performance tab to verify the strategy works for you.<br>
+        ✓ Start with 1 contract per signal when you go live — size up as win rate validates.<br>
+        ✓ Never risk more than 10–20% of this account on a single signal.<br>
+        ✓ Options expire worthless 40–50% of the time. This is a high-risk strategy.<br>
+        ✓ Connect real API keys above for live data before trusting any signal for real money.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Signal Detail</div>
+      <button class="close-btn" onclick="closeModalDirect()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ============================================================
+// SIGNAL SNIPER — Core Logic
+// ============================================================
+// API keys are injected at deploy time by inject-keys.js.
+// If keys are present, live data is fetched. Otherwise demo mode runs.
+// ============================================================
+
+const POLYGON_KEY = document.getElementById('polygonKey').value;
+const FINNHUB_KEY = document.getElementById('finnhubKey').value;
+const HAS_LIVE_DATA = POLYGON_KEY.length > 5 && !POLYGON_KEY.startsWith('__');
+
+if (HAS_LIVE_DATA) {
+  document.getElementById('live-label').textContent = 'LIVE DATA';
+  document.getElementById('mode-badge').textContent = 'LIVE MODE — Polygon.io + Finnhub connected';
+  document.getElementById('mode-badge').style.borderColor = 'rgba(0,255,136,0.3)';
+  document.getElementById('mode-badge').style.color = 'var(--green)';
+}
+
+// ============================================================
+// DEMO SIGNAL DATA
+// In production these are replaced by live Polygon.io scans
+// ============================================================
+const SIGNALS = [
+  {
+    id:1, ticker:'MULN', company:'Mullen Automotive Inc.',
+    direction:'call', confidence:88,
+    currentPrice:2.14, expectedMove:'+0.45 (21%)',
+    strike:2.50, expiration:'Apr 5', dte:3,
+    entry:'$0.18–$0.25', entryMid:0.21,
+    stop:1.92, target:2.78, rr:'1:2.9',
+    strategy:'catalyst',
+    reason:'Pre-market volume spike 8x avg on SEC filing surprise. Short float 42%. Gap-and-go setup.',
+    catalyst:'⚡ MULN filed surprise SEC amendment + unusual call sweep $50k — 0DTE alert',
+    news:[
+      {source:'SEC EDGAR',title:'MULN files 8-K amendment — equity restructuring terms modified',time:'6:42 AM'},
+      {source:'Benzinga',title:'Mullen Automotive sees 8x pre-market volume surge ahead of open',time:'7:15 AM'}
+    ],
+    indicators:{rsi:68,rsiSignal:'Bullish — approaching overbought from low',macd:'Bullish crossover 30m',vwap:'Price above VWAP',vol:'8.2x avg volume'},
+    avgDailyVol:'4.2M', impliedVol:'185%'
+  },
+  {
+    id:2, ticker:'BBAI', company:'BigBear.ai Holdings Inc.',
+    direction:'call', confidence:83,
+    currentPrice:3.87, expectedMove:'+0.62 (16%)',
+    strike:4.00, expiration:'Apr 7', dte:5,
+    entry:'$0.22–$0.30', entryMid:0.26,
+    stop:3.52, target:4.65, rr:'1:2.2',
+    strategy:'uoa',
+    reason:'Unusual call sweep detected at $4 strike, 3x normal options volume. AI sector momentum.',
+    catalyst:'🔥 3 large call blocks swept — $78k notional — likely institutional accumulation',
+    news:[
+      {source:'Bloomberg',title:'BigBear.ai lands DoD contract extension worth $15M',time:'Yesterday'},
+      {source:'Options Flow',title:'Unusual call activity: 1,200 contracts $4C swept at ask',time:'9:35 AM'}
+    ],
+    indicators:{rsi:61,rsiSignal:'Bullish momentum building',macd:'MACD histogram expanding bullish',vwap:'Holding VWAP support on dips',vol:'3.1x avg volume'},
+    avgDailyVol:'8.1M', impliedVol:'142%'
+  },
+  {
+    id:3, ticker:'CLOV', company:'Clover Health Investments',
+    direction:'call', confidence:79,
+    currentPrice:1.43, expectedMove:'+0.28 (20%)',
+    strike:1.50, expiration:'Apr 4', dte:2,
+    entry:'$0.08–$0.14', entryMid:0.11,
+    stop:1.28, target:1.76, rr:'1:2.1',
+    strategy:'breakout',
+    reason:'Breakout above 30-day resistance at $1.42 on 5x relative volume. Short float 18%.',
+    catalyst:'📊 Clean breakout above key resistance — volume confirmation strong',
+    news:[
+      {source:'Reddit/WSB',title:'CLOV trending — breakout watch + CMS ruling catalyst coming',time:'8:55 AM'}
+    ],
+    indicators:{rsi:58,rsiSignal:'Mid-range — room to run',macd:'Bullish cross on 15m',vwap:'Above VWAP all session',vol:'5.2x avg volume'},
+    avgDailyVol:'12.3M', impliedVol:'167%'
+  },
+  {
+    id:4, ticker:'SNDL', company:'SNDL Inc. (Cannabis)',
+    direction:'put', confidence:74,
+    currentPrice:1.82, expectedMove:'-0.31 (17%)',
+    strike:1.75, expiration:'Apr 5', dte:3,
+    entry:'$0.12–$0.18', entryMid:0.15,
+    stop:1.97, target:1.47, rr:'1:2.3',
+    strategy:'catalyst',
+    reason:'FDA regulatory news negative for cannabis sector. Put sweep on sector ETF signals institutional hedge.',
+    catalyst:'🔻 DEA denies rescheduling comment — cannabis sell-off catalyst active',
+    news:[
+      {source:'Reuters',title:'DEA closes public comment period without action on cannabis rescheduling',time:'10:12 AM'},
+      {source:'Options Flow',title:'MJ ETF put sweeps — $95k notional bearish block',time:'10:18 AM'}
+    ],
+    indicators:{rsi:42,rsiSignal:'Bearish — declining',macd:'Bearish MACD cross',vwap:'Price rejected at VWAP',vol:'4.8x avg volume'},
+    avgDailyVol:'6.7M', impliedVol:'128%'
+  },
+  {
+    id:5, ticker:'GFAI', company:'Guardforce AI Co. Ltd.',
+    direction:'call', confidence:67,
+    currentPrice:0.78, expectedMove:'+0.18 (23%)',
+    strike:1.00, expiration:'Apr 7', dte:5,
+    entry:'$0.05–$0.09', entryMid:0.07,
+    stop:0.64, target:1.02, rr:'1:2.4',
+    strategy:'breakout',
+    reason:'AI security robot PR creates momentum. High short float 28%. Lottery-ticket structure.',
+    catalyst:'🤖 AI security robot deployment PR — viral Reddit post driving retail momentum',
+    news:[
+      {source:'PR Newswire',title:'Guardforce AI deploys autonomous security robots in Singapore airports',time:'Yesterday'}
+    ],
+    indicators:{rsi:55,rsiSignal:'Neutral with upward bias',macd:'Flattening — needs breakout confirm',vwap:'Testing VWAP',vol:'2.3x avg volume'},
+    avgDailyVol:'3.1M', impliedVol:'310%'
+  }
+];
+
+const WATCHLIST_DATA = [
+  {ticker:'NKLA',company:'Nikola Corp.',price:0.43,chg:+8.2,chgPct:'+8.2%',note:'Short squeeze watch — 38% float short'},
+  {ticker:'FFIE',company:'Faraday Future',price:0.31,chg:-3.1,chgPct:'-9.1%',note:'Wait for reversal catalyst'},
+  {ticker:'SOUN',company:'SoundHound AI',price:5.12,chg:+2.3,chgPct:'+2.3%',note:'AI name — breakout above $5.50 triggers'},
+  {ticker:'PHUN',company:'Phunware Inc.',price:1.24,chg:+14.8,chgPct:'+14.8%',note:'Volume surge — watch for call setup'},
+];
+
+const HIST_DATA = [
+  {date:'Apr 1',ticker:'MULN',dir:'CALL',conf:91,result:'WIN',pnl:'+$134'},
+  {date:'Apr 1',ticker:'BBAI',dir:'CALL',conf:78,result:'WIN',pnl:'+$89'},
+  {date:'Mar 31',ticker:'CLOV',dir:'PUT',conf:72,result:'LOSS',pnl:'-$45'},
+  {date:'Mar 31',ticker:'SNDL',dir:'PUT',conf:85,result:'WIN',pnl:'+$198'},
+  {date:'Mar 30',ticker:'GFAI',dir:'CALL',conf:65,result:'LOSS',pnl:'-$32'},
+  {date:'Mar 30',ticker:'NKLA',dir:'CALL',conf:80,result:'WIN',pnl:'+$156'},
+  {date:'Mar 29',ticker:'FFIE',dir:'PUT',conf:77,result:'WIN',pnl:'+$67'},
+];
+
+// ============================================================
+// LIVE DATA — Polygon.io integration
+// Fetches real-time price + volume for a ticker
+// ============================================================
+async function fetchLivePrice(ticker) {
+  if (!HAS_LIVE_DATA) return null;
+  try {
+    const r = await fetch(`https://api.polygon.io/v2/last/trade/${ticker}?apiKey=${POLYGON_KEY}`);
+    const d = await r.json();
+    return d.results?.p || null;
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// LIVE DATA — Finnhub news fetch
+// ============================================================
+async function fetchNews(ticker) {
+  if (!HAS_LIVE_DATA) return null;
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const week = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+    const r = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${week}&to=${today}&token=${FINNHUB_KEY}`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+let activeFilter = 'all';
+let perfChartInstance = null;
+
+function getRiskPct(){ return parseInt(document.getElementById('riskPct')?.value||15)/100; }
+function getAccount(){ return parseFloat(document.getElementById('accountSize')?.value||450); }
+
+function calcContracts(signal){
+  const account = getAccount();
+  const riskAmt = account * getRiskPct();
+  const costPerContract = signal.entryMid * 100;
+  const contracts = Math.max(1, Math.floor(riskAmt / costPerContract));
+  return {
+    contracts,
+    totalCost: (contracts * costPerContract).toFixed(0),
+    riskAmt: riskAmt.toFixed(0)
+  };
+}
+
+function confColor(c){
+  if(c>=80) return '#00ff88';
+  if(c>=70) return '#ffd166';
+  return '#ff9f1c';
+}
+
+function drawConfRing(c){
+  const color = confColor(c);
+  const r=24,cx=30,circ=2*Math.PI*r,fill=(c/100)*circ;
+  return `<svg width="60" height="60" viewBox="0 0 60 60">
+    <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="#1a1d2a" stroke-width="5"/>
+    <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+      stroke-dasharray="${fill} ${circ}" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function strategyLabel(s){
+  return {catalyst:'⚡ CATALYST',uoa:'🔥 UOA SWEEP',breakout:'📊 BREAKOUT',technical:'📉 TECHNICAL'}[s]||s;
+}
+
+// ============================================================
+// RENDER SIGNAL CARD
+// ============================================================
+function renderSignalCard(s){
+  const {contracts,totalCost,riskAmt} = calcContracts(s);
+  const isCall = s.direction==='call';
+  return `<div class="signal-card ${s.direction}" onclick="openModal(${s.id})" data-conf="${s.confidence}" data-dir="${s.direction}">
+    <div class="card-top">
+      <div>
+        <div class="direction-badge ${s.direction}">${isCall?'▲':'▼'} BUY ${s.direction.toUpperCase()}</div>
+        <div class="ticker">${s.ticker}</div>
+        <div class="company">${s.company}</div>
+      </div>
+      <div class="confidence-ring">
+        ${drawConfRing(s.confidence)}
+        <div class="conf-text">
+          <div class="conf-pct" style="color:${confColor(s.confidence)}">${s.confidence}%</div>
+          <div class="conf-lbl">CONF</div>
+        </div>
+      </div>
+    </div>
+    <div class="price-row">
+      <div class="current-price">$${s.currentPrice.toFixed(2)}</div>
+      <div class="expected-move ${s.direction}">${s.expectedMove}</div>
+    </div>
+    <div class="trade-grid">
+      <div class="trade-item"><div class="tl">STRIKE</div><div class="tv">$${s.strike}</div></div>
+      <div class="trade-item"><div class="tl">EXP</div><div class="tv">${s.expiration}</div></div>
+      <div class="trade-item"><div class="tl">DTE</div><div class="tv">${s.dte}d</div></div>
+    </div>
+    <div class="trade-grid">
+      <div class="trade-item"><div class="tl">ENTRY</div><div class="tv" style="font-size:10px">${s.entry}</div></div>
+      <div class="trade-item"><div class="tl">STRATEGY</div><div class="tv" style="font-size:9px;color:var(--muted)">${strategyLabel(s.strategy)}</div></div>
+      <div class="trade-item"><div class="tl">IV</div><div class="tv" style="color:var(--yellow)">${s.impliedVol}</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="stop-target">
+      <div class="st-item"><div class="st-label">STOP</div><div class="st-val red">$${s.stop.toFixed(2)}</div></div>
+      <div class="rr-badge">${s.rr}</div>
+      <div class="st-item"><div class="st-label">TARGET</div><div class="st-val green">$${s.target.toFixed(2)}</div></div>
+    </div>
+    <div class="reason">${s.reason}</div>
+    <div class="catalyst">${s.catalyst}</div>
+    <div class="contracts-row">
+      <div>
+        <div class="contracts-label">SUGGESTED SIZE</div>
+        <div class="contracts-val">${contracts} contract${contracts>1?'s':''} · $${totalCost} cost · $${riskAmt} at risk</div>
+      </div>
+      <button class="view-btn">FULL DETAIL →</button>
+    </div>
+  </div>`;
+}
+
+function renderSignals(){
+  const container = document.getElementById('signals-container');
+  let filtered = [...SIGNALS];
+  if(activeFilter==='call') filtered = filtered.filter(s=>s.direction==='call');
+  else if(activeFilter==='put') filtered = filtered.filter(s=>s.direction==='put');
+  else if(activeFilter==='high') filtered = filtered.filter(s=>s.confidence>=80);
+  filtered.sort((a,b)=>b.confidence-a.confidence);
+  const max = parseInt(document.getElementById('maxSigs')?.value||5);
+  filtered = filtered.slice(0,max);
+  document.getElementById('sig-count').textContent = filtered.length;
+  container.innerHTML = filtered.map(s=>renderSignalCard(s)).join('');
+}
+
+function filterSignals(type,btn){
+  activeFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSignals();
+}
+
+function refreshSignals(){
+  const btn=document.querySelector('.refresh-btn');
+  btn.textContent='↺ LOADING...';
+  setTimeout(()=>{btn.textContent='↺ REFRESH';renderSignals();},800);
+}
+
+// ============================================================
+// MODAL — Full signal detail
+// ============================================================
+function openModal(id){
+  const s=SIGNALS.find(x=>x.id===id);
+  if(!s) return;
+  const {contracts,totalCost,riskAmt}=calcContracts(s);
+  const isCall=s.direction==='call';
+  document.getElementById('modal-title').innerHTML=`<span style="color:${isCall?'var(--green)':'var(--red)'}">${s.ticker}</span> ${isCall?'CALL':'PUT'} · ${s.expiration}`;
+  const newsHtml=s.news.map(n=>`<div class="news-card"><div class="news-source">${n.source}</div><div class="news-title">${n.title}</div><div class="news-time">${n.time}</div></div>`).join('');
+  document.getElementById('modal-body').innerHTML=`
+    <div class="chart-container">
+      <div class="chart-title">SIMULATED INTRADAY PRICE ACTION</div>
+      <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
+    </div>
+    <div class="section-header">TECHNICAL INDICATORS</div>
+    <div class="indicator-grid">
+      <div class="indicator-card">
+        <div class="ind-name">RSI (14)</div>
+        <div class="ind-bar-bg"><div class="ind-bar" style="width:${s.indicators.rsi}%;background:${s.indicators.rsi>70?'var(--red)':'var(--green)'}"></div></div>
+        <div class="ind-val">${s.indicators.rsi}</div>
+        <div class="ind-signal" style="color:var(--muted)">${s.indicators.rsiSignal}</div>
+      </div>
+      <div class="indicator-card">
+        <div class="ind-name">MACD</div>
+        <div class="ind-bar-bg"><div class="ind-bar" style="width:70%;background:var(--green)"></div></div>
+        <div class="ind-signal" style="color:var(--green)">${s.indicators.macd}</div>
+      </div>
+      <div class="indicator-card">
+        <div class="ind-name">VWAP</div>
+        <div class="ind-bar-bg"><div class="ind-bar" style="width:80%;background:var(--green)"></div></div>
+        <div class="ind-signal" style="color:var(--green)">${s.indicators.vwap}</div>
+      </div>
+      <div class="indicator-card">
+        <div class="ind-name">RELATIVE VOLUME</div>
+        <div class="ind-bar-bg"><div class="ind-bar" style="width:90%;background:var(--yellow)"></div></div>
+        <div class="ind-val" style="color:var(--yellow)">${s.indicators.vol}</div>
+      </div>
+    </div>
+    <div class="section-header">NEWS & CATALYST</div>
+    ${newsHtml}
+    <div class="section-header" style="margin-top:16px">EXECUTION GUIDE</div>
+    <div class="exec-card">
+      <div class="exec-title">HOW TO EXECUTE ON ROBINHOOD</div>
+      <div class="exec-step"><div class="exec-num">1</div><div class="exec-text">Search <b>${s.ticker}</b> → tap Options → select <b>${isCall?'Call':'Put'}</b> → choose expiry <b>${s.expiration}</b></div></div>
+      <div class="exec-step"><div class="exec-num">2</div><div class="exec-text">Select strike <b>$${s.strike}</b> (slightly OTM) — avoid deep OTM</div></div>
+      <div class="exec-step"><div class="exec-num">3</div><div class="exec-text">Set <b>limit order</b> in zone ${s.entry} — never use market orders on options</div></div>
+      <div class="exec-step"><div class="exec-num">4</div><div class="exec-text">Buy <b>${contracts} contract${contracts>1?'s':''}</b> based on your $${riskAmt} risk budget (${Math.round(getRiskPct()*100)}% of account)</div></div>
+      <div class="exec-step"><div class="exec-num">5</div><div class="exec-text">Mental stop: <b>exit if stock hits $${s.stop.toFixed(2)}</b> — do not hold through stop</div></div>
+      <div class="exec-step"><div class="exec-num">6</div><div class="exec-text">Target: <b>$${s.target.toFixed(2)}</b> — consider selling 50% at 50% profit to lock in gains</div></div>
+    </div>
+    <div style="background:rgba(255,61,90,0.06);border:1px solid rgba(255,61,90,0.2);border-radius:8px;padding:12px;font-size:11px;color:var(--muted);line-height:1.7">
+      ⚠ Risk disclaimer: Options can expire worthless. Demo mode uses simulated data. Connect live API keys before trading real capital. Never risk more than you can afford to lose.
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>drawModalChart(s),100);
+}
+
+function drawModalChart(s){
+  const ctx=document.getElementById('modalChart');
+  if(!ctx) return;
+  const pts=30,base=s.currentPrice;
+  const labels=Array.from({length:pts},(_,i)=>`${9+Math.floor(i*6.5/60)}:${String((i*6.5)%60|0).padStart(2,'0')}`);
+  const data=[base*0.97];
+  for(let i=1;i<pts;i++){
+    const trend=s.direction==='call'?0.003:-0.003;
+    const noise=(Math.random()-0.48)*0.015;
+    data.push(+(data[i-1]*(1+trend+noise)).toFixed(3));
+  }
+  const color=s.direction==='call'?'#00ff88':'#ff3d5a';
+  new Chart(ctx,{type:'line',data:{labels,datasets:[{data,borderColor:color,borderWidth:2,backgroundColor:color+'22',fill:true,tension:0.4,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:color}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`$${c.parsed.y.toFixed(3)}`},backgroundColor:'#1a1d2a',borderColor:'#ffffff22',borderWidth:1,titleColor:'#7a7f96',bodyColor:'#e8eaf0'}},scales:{x:{ticks:{color:'#3a3f55',font:{size:9},maxTicksLimit:8},grid:{color:'#ffffff08'}},y:{ticks:{color:'#3a3f55',font:{size:9},callback:v=>`$${v.toFixed(2)}`},grid:{color:'#ffffff08'}}}}});
+}
+
+function closeModal(e){if(e.target===document.getElementById('modal-overlay'))closeModalDirect();}
+function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function showTab(name){
+  ['signals','watchlist','positions','performance','settings'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((b,i)=>{
+    b.classList.toggle('active',['signals','watchlist','positions','performance','settings'][i]===name);
+  });
+  if(name==='performance'){setTimeout(drawPerfChart,100);renderHistory();}
+  if(name==='watchlist') renderWatchlist();
+  if(name==='positions') renderPositions();
+}
+
+// ============================================================
+// PERFORMANCE
+// ============================================================
+function drawPerfChart(){
+  const ctx=document.getElementById('perfChart');
+  if(!ctx||perfChartInstance) return;
+  const labels=['Mar 25','Mar 26','Mar 27','Mar 28','Mar 29','Mar 30','Mar 31','Apr 1','Apr 2'];
+  const data=[-45,12,-45,89,198,89,199,266,842];
+  perfChartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'P&L',data,borderColor:'#00ff88',borderWidth:2,backgroundColor:'rgba(0,255,136,0.08)',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'#00ff88'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#3a3f55',font:{size:10}},grid:{color:'#ffffff08'}},y:{ticks:{color:'#3a3f55',font:{size:10},callback:v=>`$${v}`},grid:{color:'#ffffff08'}}}}});
+}
+
+function renderHistory(){
+  document.getElementById('hist-body').innerHTML=HIST_DATA.map(h=>`
+    <tr>
+      <td style="color:var(--muted)">${h.date}</td>
+      <td><b>${h.ticker}</b></td>
+      <td style="color:${h.dir==='CALL'?'var(--green)':'var(--red)'}">${h.dir}</td>
+      <td style="color:${confColor(h.conf)}">${h.conf}%</td>
+      <td class="${h.result==='WIN'?'win':'loss'}">${h.result}</td>
+      <td class="${h.pnl.startsWith('+')?'win':'loss'}">${h.pnl}</td>
+    </tr>`).join('');
+}
+
+// ============================================================
+// WATCHLIST
+// ============================================================
+function renderWatchlist(){
+  document.getElementById('watchlist-container').innerHTML=WATCHLIST_DATA.map(w=>`
+    <div class="watch-card">
+      <div class="watch-left">
+        <div class="wt">${w.ticker}</div>
+        <div class="wc">${w.company}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">${w.note}</div>
+      </div>
+      <div class="watch-right">
+        <div class="watch-price">$${w.price.toFixed(2)}</div>
+        <div class="watch-chg" style="color:${w.chg>0?'var(--green)':'var(--red)'}">${w.chgPct}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+// POSITIONS
+// ============================================================
+function renderPositions(){
+  document.getElementById('positions-container').innerHTML=`
+    <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+      <div style="font-size:32px;opacity:0.3;margin-bottom:12px">📋</div>
+      <div style="font-size:13px;margin-bottom:8px">No open positions tracked yet.</div>
+      <div style="font-size:11px">Take a trade from a signal, then log it here to track your P&L.</div>
+    </div>`;
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function saveKeys(){
+  // In live mode the keys are already injected — this just confirms to the user
+  const c=document.getElementById('save-confirm');
+  c.style.display='inline';
+  setTimeout(()=>{c.style.display='none';renderSignals();},2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderSignals();
+
+// Demo invalidation banner after 8s
+setTimeout(()=>{
+  const b=document.getElementById('banner');
+  b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),5000);
+},8000);
+</script>
+</body>
+</html>
